@@ -5,7 +5,7 @@
   "outputDirectory": "dist",
   "functions": {
     "api/**/*.ts": {
-      "runtime": "nodejs20.x"
+      "runtime": "@vercel/node"
     }
   },
   "crons": [
