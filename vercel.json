@@ -11,7 +11,7 @@
   "crons": [
     {
       "path": "/api/cron/dispatch-due",
-      "schedule": "*/5 * * * *"
+      "schedule": "0 8 * * *"
     }
   ]
 }
