@@ -1,6 +1,14 @@
 // Socle de l'interface : accès au serveur local, état du projet, formats, petits composants partagés.
-import { html, render, useState, useEffect, useRef, useMemo, useCallback } from "../vendor/preact-htm.js";
-export { html, render, useState, useEffect, useRef, useMemo, useCallback };
+import { h, render, options } from "../vendor/preact.module.js";
+import { useState, useEffect, useRef, useMemo, useCallback } from "../vendor/hooks.module.js";
+import htm from "../vendor/htm.module.js";
+export const html = htm.bind(h);
+export { render, useState, useEffect, useRef, useMemo, useCallback };
+
+// Preact redessine par défaut dans une micro-tâche, c'est-à-dire AU MILIEU de la propagation d'un clic réel :
+// un nœud réutilisé pouvait recevoir un gestionnaire tout neuf et réagir au clic qui venait de le créer.
+// On attend donc la fin complète de l'événement (macro-tâche) avant de redessiner.
+options.debounceRendering = (rendre) => setTimeout(rendre, 0);
 
 // ---------------------------------------------------------------- serveur
 export async function api(chemin, { methode = "GET", corps, brut = false } = {}) {
@@ -162,9 +170,9 @@ export function ChoixVariable({ valeur, onChange, types, multiple, placeholder =
   return html`<div ref=${ref} style="position:relative">
     ${multiple && selection.length > 0 && html`<div class="puces" style="margin-bottom:5px">${selection.map((id) => html`<span class="puce" title=${titreComplet(id)}><span class="tronque">${nomVar(id, 34)}</span><button onClick=${() => onChange(selection.filter((x) => x !== id))} aria-label="Retirer">×</button></span>`)}</div>`}
     ${!multiple && valeur && !ouvert
-      ? html`<div class="champ ligne" style="cursor:pointer" onClick=${() => setOuvert(true)} title=${titreComplet(valeur)}><span class="tronque" style="flex:1">${nomVar(valeur, 70)}</span>${etat.variables[valeur] && html`<${Badge} v=${etat.variables[valeur]} />`}<button class="btn discret petit" onClick=${(e) => { e.stopPropagation(); onChange(null); }} aria-label="Retirer">×</button></div>`
-      : html`<input class="champ" placeholder=${multiple && selection.length ? "Ajouter une variable…" : placeholder} value=${q} onFocus=${() => setOuvert(true)} onInput=${(e) => { setQ(e.target.value); setOuvert(true); }} />`}
-    ${ouvert && html`<div class="menu" style="left:0;right:0;top:100%;margin-top:3px">
+      ? html`<div key="choisie" class="champ ligne" style="cursor:pointer" onClick=${() => setOuvert(true)} title=${titreComplet(valeur)}><span class="tronque" style="flex:1">${nomVar(valeur, 70)}</span>${etat.variables[valeur] && html`<${Badge} v=${etat.variables[valeur]} />`}<button class="btn discret petit" onClick=${(e) => { e.stopPropagation(); onChange(null); }} aria-label="Retirer">×</button></div>`
+      : html`<input key="saisie" class="champ" placeholder=${multiple && selection.length ? "Ajouter une variable…" : placeholder} value=${q} onFocus=${() => setOuvert(true)} onInput=${(e) => { setQ(e.target.value); setOuvert(true); }} />`}
+    ${ouvert && html`<div key="menu" class="menu" style="left:0;right:0;top:100%;margin-top:3px">
       ${trouvees.length === 0 && html`<div class="option muet">Aucune variable ne correspond${types ? ` (types acceptés : ${types.map((t) => TYPES[t]).join(", ")})` : ""}.</div>`}
       ${trouvees.map((v) => { const fam = multiple && famille(v); return html`<div class=${"option" + (selection.includes(v.id) ? " survol" : "")} onClick=${() => choisir(v)} title=${titreComplet(v)}>
         <span style="flex:1;min-width:0"><span class="clamp2">${v.sous_libelle ? html`<b>${court(v.sous_libelle, 60)}</b> <span class="muet">· ${court(v.libelle, 50)}</span>` : (v.nom !== v.id ? html`<b>${v.nom}</b> <span class="muet">· ${court(v.libelle, 50)}</span>` : court(v.libelle, 90))}</span></span>

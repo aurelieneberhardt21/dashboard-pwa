@@ -6,7 +6,8 @@ Document de reprise : état du logiciel, décisions de conception, ce qui est v�
 ## État au 10 novembre 2026 (v0.1.0)
 
 Premier parcours complet, utilisable de bout en bout : **import → dictionnaire → préparation → analyses →
-journal et exports**. 57 tests automatiques passent (`uv run pytest`).
+journal et exports**. 57 tests automatiques passent (`uv run pytest`), plus un parcours de 24 étapes dans un
+vrai navigateur (`tests/interface/parcours.cjs`).
 
 ### Ce qui fonctionne (vérifié)
 
@@ -21,7 +22,7 @@ journal et exports**. 57 tests automatiques passent (`uv run pytest`).
 | Tri à plat, croisement (tableau, moyennes, corrélation), réponses multiples, corrélations, régressions linéaire / logistique / multinomiale, exploration | validés contre R (`tests/test_bivarie.py`, 24 tests) |
 | ACP, AFC, ACM, ACM spécifique, AFDM, éléments supplémentaires, CAH + consolidation + description des classes | validés contre FactoMineR / GDAtools (`tests/test_geometrique.py`, 28 tests) |
 | Exports : Excel, copie de tableau, SVG / PNG, script R + données, journal méthodologique, données préparées | test de parcours (présence et contenu minimal). Les scripts R générés ont été **exécutés dans R** pour les 11 types d'analyse sur les données fictives et redonnent les chiffres d'Établi (valeurs propres ACM spécifique / ACP / AFC / AFDM, chi², V, coefficients, déviance, effectifs des classes, % par item) — vérification manuelle, pas encore automatisée |
-| Interface (4 écrans) | essais manuels dans Chromium sur données fictives et sur l'export réel ; pas de test automatisé de l'interface |
+| Interface (4 écrans) | `tests/interface/parcours.cjs` (Playwright, clics réels, données fictives) : recodage avec aperçu, croisement construit à la main, fiche de calcul, aide, modalité rendue passive depuis la carte, comparaison, historique, annulation, journal. Essais manuels sur l'export réel. Vérifié dans Chromium seulement (ni Safari ni Firefox) |
 
 ### Ce qui n'est pas fait ou pas vérifié
 
@@ -57,7 +58,10 @@ journal et exports**. 57 tests automatiques passent (`uv run pytest`).
    l'exploration trie par intensité et affiche les p ajustées et le nombre de tests.
 8. **Interface sans étape de compilation** : Preact + htm embarqués (`web/vendor`), modules ES, graphiques
    SVG écrits à la main (`web/js/graphiques.js`) → modifiable sans Node, exports SVG propres.
-9. **Historique en instantanés** (`historique/*.json.gz`) : simple et sûr ; l'état d'un projet reste petit.
+9. **Rendu différé** : `options.debounceRendering = setTimeout` (dans `web/js/base.js`). Par défaut Preact
+   redessine dans une micro-tâche, donc au milieu de la propagation d'un clic réel ; un nœud réutilisé
+   recevait alors le clic qui venait de le créer (le sélecteur de variable se rouvrait aussitôt). Ne pas retirer.
+10. **Historique en instantanés** (`historique/*.json.gz`) : simple et sûr ; l'état d'un projet reste petit.
 
 ## Pistes pour la suite (par ordre d'intérêt pour la thèse)
 
@@ -68,7 +72,8 @@ journal et exports**. 57 tests automatiques passent (`uv run pytest`).
    (remplacerait l'inférence des champs quand le fichier est disponible).
 3. **Codage assisté des questions ouvertes** (professions des parents → PCS) : recherche par mots, règles
    réutilisables — sans appel externe.
-4. Exécuter et corriger les scripts R générés ; test automatisé de l'interface (Playwright).
+4. Automatiser la vérification des scripts R générés ; étendre le test d'interface (éditeurs d'étapes autres
+   que le recodage, populations, ré-import) ; essayer Safari.
 5. Analyse des données structurées : effets et écarts entre points moyens de sous-nuages, typicalité
    (Le Roux & Rouanet) au-delà des ellipses de concentration ; ACM de classes (CSA).
 6. Sections thématiques du questionnaire (le serveur les stocke déjà : `sections`), pour naviguer par thème.

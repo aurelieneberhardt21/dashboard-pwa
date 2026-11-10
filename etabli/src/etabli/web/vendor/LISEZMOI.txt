@@ -1,0 +1,4 @@
+Bibliothèques embarquées (aucun téléchargement à l'exécution) :
+  preact.module.js  Preact 10.24.3 (MIT) — https://preactjs.com
+  hooks.module.js   preact/hooks 10.24.3 (MIT) — seule modification : l'import pointe sur ./preact.module.js
+  htm.module.js     htm 3.1.1 (Apache-2.0) — https://github.com/developit/htm

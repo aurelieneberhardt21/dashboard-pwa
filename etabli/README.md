@@ -97,6 +97,7 @@ tests et dans l'en-tête des modules.
 ```bash
 uv run pytest                      # 57 tests : moteurs statistiques + parcours complet sur données fictives
 Rscript tests/reference/geometrique.R   # (facultatif) régénérer les références avec R
+node tests/interface/parcours.cjs       # (facultatif) parcours de l'interface dans un navigateur — voir l'en-tête du fichier
 ```
 
 Chaque analyse peut être exportée en **script R + données analysées** (onglet *Fiche de calcul*), pour
