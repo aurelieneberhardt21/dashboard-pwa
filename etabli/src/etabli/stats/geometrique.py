@@ -145,7 +145,7 @@ def _svd_ponderee(T: np.ndarray, r: np.ndarray, c: np.ndarray) -> tuple[np.ndarr
     lam = s**2
     garde = lam > _EPS_AXE * max(lam.sum(), 1e-300)
     U, s, V = U[:, garde], s[garde], V[:, garde]
-    return U / np.sqrt(r)[:, None], s, V / np.sqrt(c)[None, :]
+    return U / np.sqrt(r)[:, None], s, V / np.sqrt(c)[:, None]
 
 
 def _table_axes(lam: np.ndarray) -> list[dict]:
