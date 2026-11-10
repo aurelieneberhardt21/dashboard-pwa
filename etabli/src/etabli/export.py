@@ -136,7 +136,7 @@ def script_r(projet, spec: dict, titre: str = "") -> tuple[str, str]:
             L += [f"cor.test(d[[{_r(x)}]], d[[{_r(y)}]], method = \"spearman\", exact = FALSE)"]
     elif t == "multiples":
         items = p["items"]
-        L += [f"items <- d[, {_vec(items)}] == \"TRUE\" | d[, {_vec(items)}] == TRUE",
+        L += [f"items <- sapply(d[, {_vec(items)}], function(x) ifelse(is.na(x), NA, as.character(x) %in% c(\"True\", \"TRUE\")))",
               "repondants <- rowSums(!is.na(items)) > 0", "items[is.na(items)] <- FALSE",
               "round(100 * colMeans(items[repondants, ]), 1)   # % des répondants ayant coché chaque item"]
         if p.get("groupe"):

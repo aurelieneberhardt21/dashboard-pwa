@@ -5,7 +5,8 @@
 # Ces fichiers sont versionnés : les tests Python (tests/test_bivarie.py) n'ont PAS besoin de R.
 #
 # Paquets : base R + MASS, nnet (recommandés), car, sandwich, jsonlite.
-# GDAtools (PEM de Cibois) est utilisé s'il est installé ; sinon la référence PEM est omise.
+# descriptio (PEM de Cibois) est utilisé s'il est installé ; sinon la référence PEM est omise.
+# Bibliothèque R particulière : R_LIBS=/chemin/vers/lib Rscript tests/reference/bivarie.R
 
 suppressPackageStartupMessages({
   library(jsonlite); library(MASS); library(nnet); library(car); library(sandwich)
@@ -97,10 +98,15 @@ ref_tableau <- function(tab, ordinal = FALSE, graine = 1) {
     out$phi <- (tab[1, 1] * tab[2, 2] - tab[1, 2] * tab[2, 1]) /
       sqrt(prod(rowSums(tab)) * prod(colSums(tab)))
   }
-  if (requireNamespace("GDAtools", quietly = TRUE)) {
+  # PEM de Cibois : descriptio::assoc.twocat (successeur de GDAtools::pem)
+  if (requireNamespace("descriptio", quietly = TRUE)) {
     d <- as.data.frame(as.table(tab)); d <- d[rep(seq_len(nrow(d)), d$Freq), 1:2]
-    pm <- GDAtools::pem(d[[1]], d[[2]], digits = 10)
-    out$pem_local <- mat(pm$peml); out$pem_global <- pm$pemg
+    # sort = TRUE : lignes et colonnes réordonnées selon le premier facteur de l'AFC avant de construire le
+    # tableau de liaison maximale (définition de Cibois). Avec sort = FALSE (défaut d'assoc.twocat), le PEM
+    # global dépend de l'ordre dans lequel les modalités sont présentées.
+    pm <- descriptio:::pem.table(droplevels(d[[1]]), droplevels(d[[2]]), sort = TRUE, digits = NULL)
+    pl <- pm$peml[levels(droplevels(d[[1]])), levels(droplevels(d[[2]]))]
+    out$pem_local <- mat(unclass(pl)); out$pem_global <- pm$pemg
   }
   if (ordinal) {
     pb <- paires_brutes(tab)
