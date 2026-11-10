@@ -36,7 +36,9 @@ AVERTISSEMENT = (
 
 def _quali_quali(cible: pd.Series, cand: pd.Series, seuil: int) -> dict:
     t = tableau_croise(cible, cand, simulation=0)
-    cond = t["conditions_chi2"]
+    cond = t.get("conditions_chi2")
+    if not cond or not t.get("chi2") or t["chi2"].get("p") is None:
+        raise ValueError("pas assez de modalités observées ensemble pour mesurer une liaison")
     raisons = []
     if cond["part_theoriques_inf_5"] > 0.2 or cond["min_theorique"] < 1:
         raisons.append(f"{round(100 * cond['part_theoriques_inf_5'])} % des cellules ont un effectif théorique < 5")
