@@ -280,7 +280,7 @@ def test_regression_logistique():
     par_terme = {t["terme"]: t for t in res["tests_variables"]}
     for eux in r["anova2"]:
         proche([par_terme[eux["terme"]]["stat"], par_terme[eux["terme"]]["p"]], [eux["stat"], eux["p"]], rtol=1e-5)
-    ame = {(e["variable"], e.get("modalite")): e["effet"] for e in res["effets_marginaux"]}
+    ame = {(e["variable"], e.get("modalite")): e["ame"] for e in res["effets_marginaux"]}
     proche([ame[("age", None)], ame[("lwt", None)], ame[("smoke", "oui")], ame[("ht", "oui")], ame[("race", "black")],
             ame[("race", "other")]],
            [r["ame"][k] for k in ("age", "lwt", "smoke_oui", "ht_oui", "race_black", "race_other")], rtol=1e-5)

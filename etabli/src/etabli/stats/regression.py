@@ -473,7 +473,7 @@ def regression_logistique(y: pd.Series, X: pd.DataFrame, *, modalite_cible=None,
         "variables_qualitatives": "indicatrices, modalité de référence explicite",
         "intervalle_confiance": f"Wald à {100 * ic:g} % sur le coefficient, puis exponentielle pour l'odds ratio (confint.default de R)",
         "tests_variables": "rapport de vraisemblance de type II (car::Anova)",
-        "effets_marginaux": "effets marginaux moyens (statsmodels get_margeff, at='overall') ; variation discrète 0→1 pour les indicatrices",
+        "effets_marginaux": "effets marginaux moyens : dérivée moyenne pour les quantitatives ; pour une modalité, écart moyen de probabilité prédite entre « tous dans cette modalité » et « tous dans la référence » ; erreurs types par la méthode delta",
         "colinearite": "GVIF de Fox & Monette (car::vif)",
     }
     evenements = []
@@ -557,19 +557,47 @@ def regression_logistique(y: pd.Series, X: pd.DataFrame, *, modalite_cible=None,
         av.append("Effets marginaux moyens non calculés : avec une interaction, l'effet d'une variable dépend de l'autre "
                   "et ne se résume pas à un seul nombre.")
     elif not separation:
+        # Effets marginaux moyens (AME) calculés explicitement, erreurs types par la méthode delta.
+        #  - variable quantitative : moyenne sur les individus de la dérivée dP/dx = β·p·(1 − p) ;
+        #  - modalité d'une variable qualitative : écart moyen entre la probabilité prédite si TOUS les individus
+        #    avaient cette modalité et celle prédite s'ils avaient tous la modalité de référence (les autres
+        #    variables restant à leurs valeurs observées). C'est le contraste de `margins`/`marginaleffects` en R ;
+        #    statsmodels.get_margeff(dummy=True) traite au contraire chaque indicatrice isolément, ce qui est
+        #    incohérent pour une variable à plus de deux modalités.
         try:
-            with warnings.catch_warnings():
-                warnings.simplefilter("ignore")
-                me = fit.get_margeff(at="overall", method="dydx", dummy=True)
-                ic_me = me.conf_int(alpha=1 - ic)
-            noms_me = [c for c in plan.X.columns if c != CONSTANTE]
-            for i, col in enumerate(noms_me):
+            Xm = plan.X.to_numpy(dtype=float)
+            cols = list(plan.X.columns)
+            beta = np.asarray(fit.params, dtype=float)
+            V = np.asarray(fit.cov_params(), dtype=float)
+            logistique = lambda eta: 1.0 / (1.0 + np.exp(-eta))
+            z = stats.norm.ppf(1 - (1 - ic) / 2)
+            for j, col in enumerate(cols):
+                if col == CONSTANTE:
+                    continue
                 info = plan.colonnes[col]
-                ame.append({"terme": col, "variable": info["variable"], "modalite": info["modalite"],
-                            "ame": float(me.margeff[i]), "se": float(me.margeff_se[i]), "p": float(me.pvalues[i]),
-                            "ic_bas": float(ic_me[i, 0]), "ic_haut": float(ic_me[i, 1]),
-                            "type": "variation discrète (modalité vs référence)" if info["modalite"] is not None else "dérivée moyenne (pour +1 unité)"})
-        except Exception as e:  # pragma: no cover - dépend de statsmodels
+                if info["modalite"] is None:
+                    pr = logistique(Xm @ beta)
+                    w = pr * (1 - pr)
+                    effet = float(np.mean(beta[j] * w))
+                    grad = beta[j] * np.mean((w * (1 - 2 * pr))[:, None] * Xm, axis=0)
+                    grad[j] += np.mean(w)
+                    genre = "dérivée moyenne (pour +1 unité)"
+                else:
+                    soeurs = [i for i, c in enumerate(cols) if c != CONSTANTE
+                              and plan.colonnes[c]["variable"] == info["variable"] and plan.colonnes[c]["modalite"] is not None]
+                    X0 = Xm.copy()
+                    X0[:, soeurs] = 0.0
+                    X1 = X0.copy()
+                    X1[:, j] = 1.0
+                    p1, p0 = logistique(X1 @ beta), logistique(X0 @ beta)
+                    effet = float(np.mean(p1 - p0))
+                    grad = np.mean((p1 * (1 - p1))[:, None] * X1 - (p0 * (1 - p0))[:, None] * X0, axis=0)
+                    genre = "variation discrète (modalité vs référence)"
+                se = float(np.sqrt(max(grad @ V @ grad, 0.0)))
+                pval = float(2 * stats.norm.sf(abs(effet / se))) if se > 0 else None
+                ame.append({"terme": col, "variable": info["variable"], "modalite": info["modalite"], "ame": effet,
+                            "se": se, "p": pval, "ic_bas": effet - z * se, "ic_haut": effet + z * se, "type": genre})
+        except Exception as e:  # pragma: no cover
             av.append(f"Effets marginaux non calculables ({e}).")
 
     gvif = _gvif(np.asarray(fit.cov_params()), list(plan.X.columns), plan)
