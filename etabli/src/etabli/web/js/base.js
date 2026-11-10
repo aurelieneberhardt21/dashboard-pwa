@@ -111,7 +111,13 @@ export function Segments({ options, valeur, onChange }) {
   return html`<div class="segments">${options.map(([id, lib, titre]) => html`<button class=${valeur === id ? "actif" : ""} title=${titre || ""} onClick=${() => onChange(id)}>${lib}</button>`)}</div>`;
 }
 export const Badge = ({ v }) => html`<span class=${"badge " + (v.derive ? "derive" : v.type)} title=${v.derive ? "Variable construite par une étape de préparation" : ""}>${v.derive ? "construite · " : ""}${TYPES[v.type] || v.type}</span>`;
-export const Avertissements = ({ liste }) => (liste || []).length ? html`<div>${liste.map((a) => html`<div class="note alerte">${a}</div>`)}</div>` : null;
+/** Avertissements : le premier est visible, les suivants se déplient (ils éclairent sans encombrer). */
+export const Avertissements = ({ liste, visibles = 1 }) => {
+  liste = liste || [];
+  if (!liste.length) return null;
+  return html`<div>${liste.slice(0, visibles).map((a) => html`<div class="note alerte">${a}</div>`)}
+    ${liste.length > visibles && html`<details class="aide" style="margin-top:6px"><summary>${liste.length - visibles} autre(s) point(s) d'attention</summary>${liste.slice(visibles).map((a) => html`<div class="note alerte">${a}</div>`)}</details>`}</div>`;
+};
 
 /** Infobulle globale : <span ...infobulle("texte")> ou infobulle(() => html`…`). */
 let noeudBulle = null;

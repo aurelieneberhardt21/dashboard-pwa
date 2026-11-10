@@ -83,7 +83,7 @@ export function ResCroise({ r, spec }) {
         <tr class="total"><td>Ensemble</td>${r.colonnes.map((_, j) => html`<td>${margeC(j)}</td>`)}<td>${mode === "effectifs" ? ent(r.n) : mode.startsWith("pct") ? "100,0" : ""}</td>${mode.startsWith("pct") && html`<td class="muet">${ent(r.n)}</td>`}</tr></tbody></table></div>
       ${couleur && html`<${Legende} items=${[{ label: "sur-représentation (résidu ajusté > 2)", couleur: "color-mix(in oklab, var(--s1) 35%, transparent)" }, { label: "sous-représentation (< −2)", couleur: "color-mix(in oklab, var(--s8) 35%, transparent)" }]} />`}<//>
     <${Bloc} titre="Liaison entre les deux variables"><${TestsTableau} r=${r} /><//>
-    <${Bloc} titre=${`Profils : répartition de « ${court(nomC, 40)} » selon « ${court(nomL, 40)} »`} outils=${html`<${BoutonsFigure} refSvg=${refF} nom="profils" />`}><div ref=${refF}><${Profils} categories=${r.colonnes} lignes=${[...r.lignes.map((l, i) => ({ label: `${l} (n=${r.marge_lignes[i]})`, parts: r.pct_ligne[i], effectifs: r.effectifs[i] })), { label: "Ensemble", parts: r.pct_marge_colonnes, effectifs: r.marge_colonnes, total: true }]} /></div><//></div>`;
+    <${Bloc} titre=${`Profils : répartition de « ${court(nomC, 40)} » selon « ${court(nomL, 40)} »`} outils=${html`<${BoutonsFigure} refSvg=${refF} nom="profils" />`}><div ref=${refF}><${Profils} ordonne=${!!V(spec.colonne)?.ordonnee} categories=${r.colonnes} lignes=${[...r.lignes.map((l, i) => ({ label: `${l} (n=${r.marge_lignes[i]})`, parts: r.pct_ligne[i], effectifs: r.effectifs[i] })), { label: "Ensemble", parts: r.pct_marge_colonnes, effectifs: r.marge_colonnes, total: true }]} /></div><//></div>`;
 }
 
 // ---------------------------------------------------------------- réponses multiples

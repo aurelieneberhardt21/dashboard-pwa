@@ -36,10 +36,11 @@ export function Barres({ donnees, unite = "%", max, largeur = 640, couleur = SER
 }
 
 /** Barres empilées à 100 % : profils-lignes d'un tableau croisé. */
-export function Profils({ lignes, categories, largeur = 680 }) {
+export function Profils({ lignes, categories, largeur = 680, ordonne = false }) {
   const hL = 26, gauche = Math.min(260, Math.max(80, ...lignes.map((l) => largeurTexte(court(l.label, 38), 12) + 14)));
-  const zone = largeur - gauche - 12, haut = lignes.length * hL + 22;
-  const couleurs = categories.length <= 8 ? SERIES : null;
+  const zone = largeur - gauche - 24, haut = lignes.length * hL + 22;
+  // modalités ordonnées : une seule teinte, du clair au foncé ; sinon une teinte par modalité (8 au plus)
+  const couleurs = !ordonne && categories.length <= 8 ? SERIES : null;
   const rampe = (j) => couleurs ? couleurs[j] : `color-mix(in oklab, var(--s1) ${Math.round(25 + 75 * j / Math.max(1, categories.length - 1))}%, var(--surface))`;
   return html`<div><svg viewBox=${`0 0 ${largeur} ${haut}`} width=${largeur} role="img">
     ${[0, 25, 50, 75, 100].map((t) => html`<g><line x1=${gauche + zone * t / 100} x2=${gauche + zone * t / 100} y1="2" y2=${haut - 18} stroke=${GRILLE} /><text x=${gauche + zone * t / 100} y=${haut - 5} font-size="10.5" fill=${ENCRE3} text-anchor="middle">${t} %</text></g>`)}
