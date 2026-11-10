@@ -52,6 +52,8 @@ class Contexte:
         self.variables: list[str] = []
         self.exclusions: list[dict] = []
         self.nsp = spec.get("nsp", "exclure")
+        self.export: pd.DataFrame | None = None     # données telles qu'analysées (pour l'export reproductible)
+        self.roles_export: dict = {}
 
     def exiger(self, vid: str | None, *types: str, role: str = "") -> str:
         if not vid:
@@ -162,6 +164,7 @@ def _tri(ctx: Contexte) -> tuple[dict, dict]:
                "avertissements": [], "methode": {"nom": "Liste des réponses textuelles (les plus fréquentes d'abord)"}}
         return res, ctx.fiche(len(s), {}, res["methode"])
     s = ctx.serie(vid)[ctx.masque]
+    ctx.export = pd.DataFrame({vid: s})
     statuts = decompte_statuts(ctx.table, vid, ctx.masque)
     if m["type"] == "quanti":
         res = univarie.resume_quanti(s, classes=ctx.spec.get("classes"))
@@ -200,6 +203,7 @@ def _croise(ctx: Contexte) -> tuple[dict, dict]:
     garde[ctx.masque] = (sx.notna() & sy.notna()).to_numpy()
     ctx.noter_exclusions([x, y], garde)
     qx, qy = ctx.meta[x]["type"] == "quanti", ctx.meta[y]["type"] == "quanti"
+    ctx.export = pd.DataFrame({x: sx, y: sy})[(sx.notna() & sy.notna())]
     params = {"ligne": x, "colonne": y, "nsp": ctx.nsp}
     if qx and qy:
         res = correlation.matrice_correlation(pd.DataFrame({x: sx, y: sy}), methode=ctx.spec.get("methode", "spearman"),
@@ -258,6 +262,7 @@ def _multiples(ctx: Contexte) -> tuple[dict, dict]:
     if ctx.spec.get("groupe"):
         g = ctx.exiger(ctx.spec["groupe"], "quali", "ordinale", "multi", role="de comparaison")
         groupe = ctx.serie(g)[ctx.masque].cat.remove_unused_categories()
+    ctx.export = df.assign(**({ctx.spec['groupe']: groupe} if groupe is not None else {}))
     res = croise.choix_multiples(df, groupe)
     for it in res.get("items", []):
         vid = it.get("item")
@@ -281,6 +286,7 @@ def _correlation(ctx: Contexte) -> tuple[dict, dict]:
                                     "ordinale, choisissez Spearman ou Kendall (corrélations de rangs).")
             s = pd.Series(np.where(s.isna(), np.nan, s.cat.codes.astype(float)), index=s.index)
         cadre[v] = s
+    ctx.export = pd.DataFrame(cadre)
     res = correlation.matrice_correlation(pd.DataFrame(cadre), methode=methode,
                                           ajustement=ctx.spec.get("ajustement", "holm"))
     return res, ctx.fiche(int(pd.DataFrame(cadre).notna().all(axis=1).sum()),
@@ -302,6 +308,7 @@ def _regression(ctx: Contexte) -> tuple[dict, dict]:
     garde = np.zeros(ctx.table.n, dtype=bool)
     garde[ctx.masque] = (sy.notna() & X.notna().all(axis=1)).to_numpy()
     ctx.noter_exclusions([y] + xs, garde)
+    ctx.export = X.assign(**{y: sy})[[y] + xs]
     refs = {k: v for k, v in (ctx.spec.get("references") or {}).items() if k in xs}
     inter = [tuple(i) for i in ctx.spec.get("interactions", []) if all(v in xs for v in i)]
     type_y = ctx.meta[y]["type"]
@@ -416,6 +423,8 @@ def _acm(ctx: Contexte) -> tuple[dict, dict]:
             ind_sup[v] = pd.Categorical(ind_sup[v].astype(object), categories=list(Xa[v].cat.categories))
         ind_sup = ind_sup.dropna()
     quali_sup, quanti_sup = _sup(ctx, garde, actives)
+    ctx.export = pd.concat([Xa, quali_sup, quanti_sup], axis=1)
+    ctx.roles_export = {"passives": passives}
     res = geometrique.acm(Xa, passives=passives, n_axes=int(spec.get("n_axes", 5)), ind_sup=ind_sup,
                           quali_sup=quali_sup, quanti_sup=quanti_sup)
     n = int(garde.sum())
@@ -451,6 +460,7 @@ def _acp(ctx: Contexte) -> tuple[dict, dict]:
         raise ErreurAnalyse("Trop peu d'individus avec toutes les variables actives renseignées.")
     sup_masque = _individus_sup(ctx) & complet
     quali_sup, quanti_sup = _sup(ctx, garde, actives)
+    ctx.export = pd.concat([X[garde], quali_sup, quanti_sup], axis=1)
     res = geometrique.acp(X[garde], reduire=bool(spec.get("reduire", True)), n_axes=int(spec.get("n_axes", 5)),
                           ind_sup=X[sup_masque] if sup_masque.any() else None, quanti_sup=quanti_sup, quali_sup=quali_sup)
     params = {"actives": actives, "reduire": bool(spec.get("reduire", True)), "sup_quali": spec.get("sup_quali", []),
@@ -478,6 +488,7 @@ def _afdm(ctx: Contexte) -> tuple[dict, dict]:
         if ctx.meta[v]["type"] != "quanti":
             Xa[v] = Xa[v].cat.remove_unused_categories().cat.as_unordered()
     quali_sup, quanti_sup = _sup(ctx, garde, actives)
+    ctx.export = pd.concat([Xa, quali_sup, quanti_sup], axis=1)
     res = geometrique.afdm(Xa, n_axes=int(spec.get("n_axes", 5)), quali_sup=quali_sup, quanti_sup=quanti_sup)
     params = {"actives": actives, "sup_quali": spec.get("sup_quali", []), "sup_quanti": spec.get("sup_quanti", []),
               "n_axes": int(spec.get("n_axes", 5))}
@@ -493,6 +504,7 @@ def _afc(ctx: Contexte) -> tuple[dict, dict]:
     garde = np.zeros(ctx.table.n, dtype=bool)
     garde[ctx.masque] = ok.to_numpy()
     ctx.noter_exclusions([x, y], garde)
+    ctx.export = pd.DataFrame({x: sx[ok], y: sy[ok]})
     N = pd.crosstab(sx[ok].cat.remove_unused_categories(), sy[ok].cat.remove_unused_categories())
     if N.shape[0] < 3 or N.shape[1] < 3:
         raise ErreurAnalyse("L'AFC n'a d'intérêt que pour un tableau d'au moins 3 lignes et 3 colonnes : pour un "
@@ -526,6 +538,7 @@ def _cah(ctx: Contexte) -> tuple[dict, dict]:
     sous = Contexte(ctx.projet, {**base, "n_axes": max(n_axes, int(base.get("n_axes", 5)))})
     fact, fiche_fact = FACTORIELLES[base["type"]](sous)
     ctx.variables, ctx.exclusions, ctx.masque, ctx.population = sous.variables, sous.exclusions, sous.masque, sous.population
+    ctx.export, ctx.roles_export = sous.export, sous.roles_export
     ids = fact["individus"]["ids"]
     n_axes = min(n_axes, len(fact["individus"]["coord"][0]))
     coord = pd.DataFrame([c[:n_axes] for c in fact["individus"]["coord"]], index=ids)
@@ -602,6 +615,7 @@ def _exploration(ctx: Contexte) -> tuple[dict, dict]:
     for v in candidates:
         if ctx.meta[v]["type"] != "quanti":
             cadre[v] = cadre[v].cat.remove_unused_categories()
+    ctx.export = cadre.assign(**{cible: sc})
     res = exploration.associations(sc.rename(cible), cadre, ajustement=spec.get("ajustement", "bh"))
     ctx.variables = [cible]          # la fiche ne détaille que la cible ; les candidates sont dans le tableau
     for a in res["associations"]:
@@ -619,6 +633,15 @@ EXECUTEURS = {"tri": _tri, "croise": _croise, "multiples": _multiples, "correlat
 def empreinte(projet, spec: dict) -> str:
     brut = json.dumps([projet.cle_donnees(), projet.etat["populations"], spec], sort_keys=True, ensure_ascii=False)
     return hashlib.sha256(brut.encode()).hexdigest()[:16]
+
+
+def contexte_execute(projet, spec: dict) -> tuple[Contexte, dict, dict]:
+    """Recalcule une analyse et renvoie aussi son contexte (données préparées) — utilisé par les exports."""
+    if spec.get("type") not in EXECUTEURS:
+        raise ErreurAnalyse(f"Type d'analyse inconnu : {spec.get('type')}")
+    ctx = Contexte(projet, spec)
+    resultat, fiche = EXECUTEURS[spec["type"]](ctx)
+    return ctx, resultat, fiche
 
 
 def executer(projet, spec: dict) -> dict:
