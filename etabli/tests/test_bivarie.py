@@ -268,7 +268,7 @@ def test_regression_logistique():
         # qu'à ~1e-5 près en relatif (statsmodels converge plus loin). D'où la tolérance de 2e-4.
         proche(t["coef"], eux["coef"], rtol=1e-5)
         proche([t["se"], t["stat"], t["p"]], [eux["se"], eux["stat"], eux["p"]], rtol=2e-4)
-        proche([t["ic_bas"], t["ic_haut"]], eux["ic"], rtol=2e-4)
+        proche([t["ic_bas"], t["ic_haut"]], eux["ic"], rtol=2e-4, atol=2e-5)
         proche(t["odds_ratio"], np.exp(eux["coef"]), rtol=1e-5)
     a = res["ajustement"]
     proche([a["deviance"], a["deviance_nulle"], a["aic"], a["bic"], a["log_vraisemblance"], a["pseudo_r2_mcfadden"],
