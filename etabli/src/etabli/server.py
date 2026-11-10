@@ -105,6 +105,8 @@ def _etat(p: Projet) -> dict:
         v = {k: val for k, val in m.items() if not k.startswith("_")}
         st = table.statuts[vid][base]
         v["n_valide"] = int(np.isin(st, (VALIDE, NSP)).sum())
+        v["n_vide"] = int((st == 4).sum())          # cellules vides au champ non documenté
+        v["n_atteint"] = int((st != 2).sum())       # hors abandons
         if m.get("champ") and not m["champ"].get("tous"):
             v["champ_texte"] = decrire(m["champ"], table.meta)
         variables[vid] = v

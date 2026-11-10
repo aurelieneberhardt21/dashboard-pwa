@@ -114,8 +114,12 @@ def generer(n: int = 420, graine: int = 20240) -> tuple[list[str], list[list[str
             dipl = ["Aucun diplôme ou certificat d’études", "CAP, BEP ou équivalent", "Baccalauréat", "Bac +2 à bac +4",
                     "Bac +5 ou plus", "Je ne sais pas"]
             L.append(dipl[5] if g.random() < 0.03 else dipl[int(np.clip(round(2.2 + 1.0 * capital + g.normal(0, 1)), 0, 4))])
-            L.append(choix(PROFESSIONS) if g.random() > 0.12 else "")
-            L.append("Questionnaire un peu long mais intéressant." if g.random() < 0.04 else "")
+            precisions = ["", "", " (à la retraite)", " dans le privé", " à temps partiel", ", puis sans emploi", " en province"]
+            L.append(choix(PROFESSIONS) + choix(precisions) if g.random() > 0.12 else "")
+            remarques = ["Questionnaire un peu long mais intéressant.", "Certaines questions ne correspondent pas à ma situation.",
+                         "Bon courage pour la suite de l'enquête !", "J'aurais aimé pouvoir nuancer mes réponses sur la reconnaissance.",
+                         "Merci, hâte de lire les résultats."]
+            L.append(choix(remarques) + (" " + choix(["", "Cordialement.", "Bonne continuation."])).rstrip() if g.random() < 0.05 else "")
             L.append(f"personne{i + 1}@exemple.invalid" if g.random() < 0.08 else "")
         else:
             L += [""] * 6
